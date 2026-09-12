@@ -147,8 +147,7 @@ object TextTransformer {
     /** [content] is the tag body without the surrounding `<` `>`. Returns null if unknown/invalid. */
     private fun transformTag(content: String, env: Environment): String? {
         val spaceIdx = content.indexOf(' ')
-        @Suppress("DEPRECATION")
-        val tagName = (if (spaceIdx == -1) content else content.substring(0, spaceIdx)).toLowerCase()
+        val tagName = (if (spaceIdx == -1) content else content.substring(0, spaceIdx)).lowercase()
         val arg = if (spaceIdx == -1) "" else content.substring(spaceIdx + 1)
 
         return when {
@@ -172,16 +171,14 @@ object TextTransformer {
                 (Random.nextLong(lo, hi + 1)).toString()
             }
             "upper" -> {
-                @Suppress("DEPRECATION")
-                resolveArgKeepingAccents(arg).toUpperCase()
+                resolveArgKeepingAccents(arg).uppercase()
             }
             "title" -> resolveArgKeepingAccents(arg)
                 .split(Regex("(?<=\\s)|(?=\\s)")) // keep whitespace tokens, split on word boundaries
                 .joinToString("") { token ->
                     if (token.isBlank() || token.isEmpty()) token
                     else {
-                        @Suppress("DEPRECATION")
-                        token.substring(0, 1).toUpperCase() + token.substring(1)
+                        token.substring(0, 1).uppercase() + token.substring(1)
                     }
                 }
             else -> null
@@ -229,8 +226,7 @@ object TextTransformer {
                 if (end != -1) {
                     val content = arg.substring(i + 1, end)
                     val spaceIdx = content.indexOf(' ')
-                    @Suppress("DEPRECATION")
-                    val tagName = (if (spaceIdx == -1) content else content.substring(0, spaceIdx)).toLowerCase()
+                    val tagName = (if (spaceIdx == -1) content else content.substring(0, spaceIdx)).lowercase()
                     val inner = if (spaceIdx == -1) "" else content.substring(spaceIdx + 1)
                     var consumed = false
                     if (tagName in UTILITY_TAGS) {
