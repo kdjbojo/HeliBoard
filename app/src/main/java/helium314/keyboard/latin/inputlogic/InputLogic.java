@@ -970,6 +970,14 @@ public final class InputLogic {
             final InputTransaction inputTransaction,
             final LatinIME.UIHandler handler) {
         final int codePoint = event.getCodePoint();
+
+        // Style tags feature: as soon as the user types the closing '>' of a
+        // <tag content> sequence, replace the raw sequence with its transformed
+        // text (Unicode style, date/time insertion, etc). See TextTransformer.
+        if (codePoint == '>' && tryHandleStyleTagClosing()) {
+            return;
+        }
+
         mSpaceState = SpaceState.NONE;
         final SettingsValues sv = inputTransaction.getSettingsValues();
 
@@ -1012,6 +1020,57 @@ public final class InputLogic {
                 }
             }
             handleNonSeparatorEvent(event, sv, inputTransaction);
+        }
+    }
+
+    /**
+     * Style tags feature: called right after the user has typed a '>' (which has not
+     * yet been committed to the editor). Looks at the text immediately before the
+     * cursor; if it forms a complete, recognized {@code <tag content>} sequence,
+     * deletes the raw sequence and commits the transformed text instead.
+     *
+     * @return true if a style tag was recognized and handled (the '>' the user just
+     *         typed must NOT be committed separately in that case), false otherwise
+     *         (normal '>' handling should proceed).
+     */
+    private boolean tryHandleStyleTagClosing() {
+        // Look back far enough to catch the whole "<tag content>" sequence including
+        // one level of nesting, but cap it to something reasonable.
+        final CharSequence beforeCursor = mConnection.getTextBeforeCursor(256, 0);
+        if (beforeCursor == null || beforeCursor.length() == 0) return false;
+        final String text = beforeCursor.toString();
+        if (text.indexOf('<') == -1) return false; // quick bail-out, avoids work on every '>'
+
+        final helium314.keyboard.tags.TextTransformer.Replacement replacement =
+                helium314.keyboard.tags.TextTransformer.INSTANCE.onClosingBracketTyped(
+                        text, new helium314.keyboard.tags.TextTransformer.DefaultEnvironment(
+                                () -> {
+                                    final CharSequence clip = getClipboardTextForStyleTags();
+                                    return clip != null ? clip.toString() : "";
+                                }
+                        ));
+        if (replacement == null) return false;
+
+        // The '>' itself hasn't been committed to the editor yet at this point, so we
+        // only need to delete the part of the raw sequence that's already there
+        // (everything except the trailing '>'), then commit the transformed text.
+        final int alreadyCommittedRawChars = replacement.getCharsToDelete() - 1;
+        if (alreadyCommittedRawChars > 0) {
+            mConnection.deleteTextBeforeCursor(alreadyCommittedRawChars);
+        }
+        mConnection.commitText(replacement.getTextToInsert(), 1);
+        return true;
+    }
+
+    /** Best-effort clipboard text fetch for the {@code <clip>} style tag. */
+    @Nullable
+    private CharSequence getClipboardTextForStyleTags() {
+        try {
+            return mLatinIME.getClipboardHistoryManager().getPrimaryClipIfText();
+        } catch (final Throwable t) {
+            // Clipboard access can fail depending on Android version / focus state;
+            // fail gracefully so <clip> just inserts an empty string rather than crashing.
+            return "";
         }
     }
 
