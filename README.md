@@ -19,6 +19,78 @@ Does not use internet permission, and thus is 100% offline.
 - [Credits](#credits)
   * [Funding](#funding)
 
+## 🏷️ Fork feature: Style Tags
+
+This fork adds a **style tags** feature: type `<tag content>` anywhere in
+any text field, and as soon as you type the closing `>`, the keyboard
+replaces the raw sequence with a transformed version — Unicode styled
+text, or a small utility insertion (date, time, clipboard content,
+random number, case change).
+
+### Available tags
+
+**Unicode styles** (accents are stripped before styling, e.g. `café` → `cafe`):
+
+| Tag | Result | Example |
+|---|---|---|
+| `<b texte>` | Bold sans | 𝗍𝖾𝗑𝗍𝖾 |
+| `<i texte>` | Italic sans | 𝘵𝘦𝘹𝘵𝘦 |
+| `<bi texte>` | Bold italic sans | 𝙩𝙚𝙭𝙩𝙚 |
+| `<script texte>` | Script / cursive | 𝓉𝑒𝓍𝓉𝑒 |
+| `<double texte>` | Double-struck | 𝕥𝕖𝕩𝕥𝕖 |
+| `<small texte>` | Superscript | ᵗᵉˣᵗᵉ |
+| `<sub texte>` | Subscript (limited alphabet, unsupported letters fall back to normal) | |
+| `<fullwidth texte>` (alias `<vapor texte>`) | Fullwidth | ｔｅｘｔｅ |
+| `<mono texte>` | Monospace | |
+| `<box texte>` | Squared | 🅃🄴🅇🅃🄴 |
+| `<neg texte>` | Negative squared | |
+| `<upside texte>` | Upside down | ǝʇxǝʇ |
+| `<zalgo texte>` | Glitch (moderate intensity) | |
+| `<spaced texte>` | Spaced out | t e x t e |
+
+**Utility tags** (accents are kept):
+
+| Tag | Result |
+|---|---|
+| `<date>` | Today's date (`dd/MM/yyyy`) |
+| `<time>` | Current time (`HH:mm`) |
+| `<clip>` | Current clipboard content |
+| `<rand X-Y>` | Random integer between X and Y (inclusive) |
+| `<upper texte>` | UPPERCASE |
+| `<title texte>` | Title Case |
+
+Tags can be nested one level, e.g. `<b <i texte>>` — the outermost tag
+wins (overlapping two different Unicode styles on the same characters
+isn't representable; see the limitation documented in
+[`TextTransformer.kt`](app/src/main/java/helium314/keyboard/tags/TextTransformer.kt)).
+An unclosed or unrecognized tag is left as raw text.
+
+### Quick access
+
+`<` and `>` are used constantly with this feature, so it's worth pinning
+them to the toolbar: **Settings → Toolbar → Customize toolbar key codes**,
+pick two keys you don't use, set their code to `60` (`<`) and `62` (`>`),
+then pin them under **Settings → Toolbar → Pin toolbar keys** so they're
+always visible above the keyboard.
+
+### Implementation
+
+- Core logic: [`app/src/main/java/helium314/keyboard/tags/TextTransformer.kt`](app/src/main/java/helium314/keyboard/tags/TextTransformer.kt)
+  — pure Kotlin, no Android dependency, unit-testable in isolation.
+- Tests: [`app/src/test/java/helium314/keyboard/tags/TextTransformerTest.kt`](app/src/test/java/helium314/keyboard/tags/TextTransformerTest.kt)
+  (38 tests covering every tag, accents, nesting, unclosed/unknown tags,
+  digits/punctuation, empty input).
+- Integration point: `InputLogic.java`, `handleNonSpecialCharacterEvent` —
+  intercepts the `>` code point, looks at the text before the cursor via
+  `RichInputConnection`, and on a match, deletes the raw sequence and
+  commits the transformed text.
+- CI: [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml)
+  builds a debug APK on every push and runs `TextTransformerTest`
+  (the project's own pre-existing Robolectric-based tests are skipped in
+  this workflow — they require Android SDK stub setup this generic CI
+  doesn't provide, and are unrelated to this feature).
+
+
 # Features
 <ul>
   <li>Add dictionaries for suggestions and spell check</li>
